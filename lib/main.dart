@@ -55,16 +55,5 @@ class _ExamApplicationState extends State<ExamApplication> {
   @override
   Widget build(BuildContext context) {
     return LoginRegisterPage();
-    //   StreamBuilder(
-    //   stream: Auth().authStateChanges,
-    //   builder: (context, snapshot) {
-    //     if (snapshot.hasData) {
-    //       return ExamPage();
-    //     }
-    //     else {
-    //       return LoginRegisterPage();
-    //     }
-    //   },
-    // );
   }
 }

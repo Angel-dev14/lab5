@@ -1,7 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:lab5/pages/map_page.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../auth.dart';
@@ -14,22 +15,22 @@ import '../model/exam.dart';
 import 'login_page.dart';
 
 class ExamPage extends StatefulWidget {
-  ExamPage();
+  const ExamPage({super.key});
 
   @override
   State<ExamPage> createState() => _ExamPageState();
 }
 
 class _ExamPageState extends State<ExamPage> {
-
   List<Exam> _exams = [];
 
   final _examStorage = ExamFirestore();
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
   DateTime? _selectedDay;
   DateTime _focusedDay = DateTime.now();
-  Position? position;
+  Position? currentPosition;
 
   @override
   initState() {
@@ -38,34 +39,37 @@ class _ExamPageState extends State<ExamPage> {
     _getLocation();
   }
 
-  _showUpcomingExamNotification(Exam exam,int days) {
+  _showUpcomingExamNotification(Exam exam, int days) {
     flutterLocalNotificationsPlugin.show(
         1,
-        "You have an upcoming exam in ${days} days",
-        "${exam.title}",
+        "You have an upcoming exam in $days days",
+        exam.title,
         NotificationDetails(
-            android: AndroidNotificationDetails(
-              channel.id, channel.name, channelDescription: channel.description,
-              color: Colors.blue,
-              playSound: true,
-              icon: '@mipmap/ic_launcher'
-            )
-        )
-    );
+            android: AndroidNotificationDetails(channel.id, channel.name,
+                channelDescription: channel.description,
+                color: Colors.blue,
+                playSound: true,
+                icon: '@mipmap/ic_launcher')));
   }
 
   _loadExams() async {
-    var exams = await _examStorage
-        .readExams()
-        .first;
+    var exams = await _examStorage.readExams().first;
     setState(() {
       _exams = exams;
     });
     var currentDate = DateTime.now();
-    var upcomingExam = (_exams.map((e) =>  {'exam': e, 'days': _getDateDifference(currentDate, e.dateTime)})
-        .where((examDays) => examDays['days'] as int > 0 && examDays['days'] as int < 4).toList()
-      ..sort((a,b) => (a['exam'] as int).compareTo(b['days'] as int))).first;
-    _showUpcomingExamNotification(upcomingExam['exam'] as Exam, upcomingExam['days'] as int);
+    var upcomingExam = (_exams
+            .map((e) => {
+                  'exam': e,
+                  'days': _getDateDifference(currentDate, e.dateTime)
+                })
+            .where((examDays) =>
+                examDays['days'] as int > 0 && examDays['days'] as int < 4)
+            .toList()
+          ..sort((a, b) => (a['exam'] as int).compareTo(b['days'] as int)))
+        .first;
+    _showUpcomingExamNotification(
+        upcomingExam['exam'] as Exam, upcomingExam['days'] as int);
   }
 
   int _getDateDifference(DateTime currentDate, DateTime otherDate) {
@@ -102,15 +106,53 @@ class _ExamPageState extends State<ExamPage> {
 
   _logout() async {
     await Auth().signOut();
+    _navigateToLoginPage();
+  }
+
+  _navigateToLoginPage() {
     Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (context) => LoginRegisterPage()));
   }
 
   _getLocation() async {
-    Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    Position position = await Location().determinePosition();
     setState(() {
-      this.position = position;
+      currentPosition = position;
     });
+  }
+
+  _goToMap(Exam exam) {
+    Marker eventMarker = _createMarker(
+        exam.id,
+        exam.title,
+        LatLng(exam.location.latitude, exam.location.longitude),
+        BitmapDescriptor.hueRed);
+    Marker? currentLocationMarker = currentPosition != null
+        ? _createMarker(
+            'location',
+            'Your location',
+            LatLng(currentPosition!.latitude, currentPosition!.longitude),
+            BitmapDescriptor.hueCyan)
+        : null;
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => MapPage(
+                eventMarker: eventMarker,
+                currentLocationMarker: currentLocationMarker)));
+  }
+
+  _createMarker(
+    String id,
+    String title,
+    LatLng location,
+    double hue,
+  ) {
+    return Marker(
+        markerId: MarkerId(id),
+        infoWindow: InfoWindow(title: title),
+        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+        position: LatLng(location.latitude, location.longitude));
   }
 
   @override
@@ -126,7 +168,8 @@ class _ExamPageState extends State<ExamPage> {
         ),
         body: Column(
           children: [
-            Text("Position lat and long ${position?.latitude} ${position?.longitude}"),
+            Text(
+                "Position lat and long ${currentPosition?.latitude} ${currentPosition?.longitude}"),
             Container(
               margin: EdgeInsets.only(bottom: 15),
               child: TableCalendar(
@@ -180,33 +223,34 @@ class _ExamPageState extends State<ExamPage> {
                   return filteredExams.isEmpty
                       ? const Text("No exams for selected date")
                       : Expanded(
-                      child: ListView.builder(
-                        itemCount: filteredExams.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          return Card(
-                            elevation: 3,
-                            child: ListTile(
-                              title: Text(
-                                "${filteredExams[index].title}",
-                                style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text(
-                                DateTimeFormatter.formatter.format(
-                                  filteredExams[index].dateTime,
+                          child: ListView.builder(
+                          itemCount: filteredExams.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            return Card(
+                              elevation: 3,
+                              child: ListTile(
+                                title: Text(
+                                  "${filteredExams[index].title}",
+                                  style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold),
                                 ),
-                                style: TextStyle(fontSize: 14),
+                                subtitle: Text(
+                                  DateTimeFormatter.formatter.format(
+                                    filteredExams[index].dateTime,
+                                  ),
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  onPressed: () =>
+                                      _deleteExam(filteredExams[index].id),
+                                ),
+                                onTap: () => _goToMap(filteredExams[index]),
                               ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () =>
-                                    _deleteExam(filteredExams[index].id),
-                              ),
-                            ),
-                          );
-                        },
-                      ));
+                            );
+                          },
+                        ));
                 } else {
                   return CircularProgressIndicator();
                 }
