@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:lab5/notifications/notification_creator.dart';
 import 'package:lab5/pages/map_page.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -40,16 +41,11 @@ class _ExamPageState extends State<ExamPage> {
   }
 
   _showUpcomingExamNotification(Exam exam, int days) {
-    flutterLocalNotificationsPlugin.show(
-        1,
-        "You have an upcoming exam in $days days",
-        exam.title,
-        NotificationDetails(
-            android: AndroidNotificationDetails(channel.id, channel.name,
-                channelDescription: channel.description,
-                color: Colors.blue,
-                playSound: true,
-                icon: '@mipmap/ic_launcher')));
+    NotificationCreator.createNotification(
+      1,
+      exam.title,
+      "You have an upcoming exam in $days days",
+    );
   }
 
   _loadExams() async {

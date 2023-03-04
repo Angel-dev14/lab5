@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:lab5/directions/google_directions.dart';
 
 import '../model/directions.dart';
+import '../notifications/notification_creator.dart';
 
 class MapPage extends StatefulWidget {
   final Marker eventMarker;
@@ -60,6 +61,10 @@ class MapPageState extends State<MapPage> {
     setState(() {
       _directions = directions;
     });
+    if (directions.distance < 500) {
+      NotificationCreator.createNotification(2, "Getting close",
+          "You are ${directions.distance} meters away from your exam location");
+    }
   }
 
   Set<Marker> _getMarkers() {
