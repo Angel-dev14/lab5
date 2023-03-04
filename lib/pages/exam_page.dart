@@ -11,7 +11,6 @@ import '../create_exam.dart';
 import '../firestore.dart';
 import '../formatter/date_time_formatter.dart';
 import '../location/location.dart';
-import '../main.dart';
 import '../model/exam.dart';
 import 'login_page.dart';
 
